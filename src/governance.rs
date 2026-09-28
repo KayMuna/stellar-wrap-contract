@@ -37,10 +37,13 @@ pub(crate) fn create_admin_proposal(
         .checked_add(duration_seconds)
         .unwrap_or_else(|| panic_with_error!(e, ContractError::InvalidProposalDuration));
 
+    let admin_at_creation = read_admin(&e);
+
     let proposal = AdminProposal {
         id: proposal_id,
         proposer: proposer.clone(),
         proposed_admin: proposed_admin.clone(),
+        admin_at_creation,
         votes_for: 0,
         votes_against: 0,
         start_time,
@@ -123,6 +126,14 @@ pub(crate) fn execute_admin_proposal(e: Env, proposal_id: u64) {
     let now = e.ledger().timestamp();
     if now <= proposal.end_time {
         panic_with_error!(e, ContractError::ProposalVotingPeriodNotEnded);
+    }
+
+    // Issue #864: reject execution if the admin has changed since this proposal
+    // was created. Any admin drift — via update_admin, a timelocked SetAdmin,
+    // or a prior proposal execution — invalidates the proposal.
+    let current_admin = read_admin(&e);
+    if current_admin != proposal.admin_at_creation {
+        panic_with_error!(e, ContractError::StaleProposal);
     }
 
     if proposal.votes_for > proposal.votes_against {

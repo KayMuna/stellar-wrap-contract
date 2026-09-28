@@ -166,3 +166,31 @@ These error codes are defined in `src/lib.rs` under:
 ## License
 
 Same license as the rest of this repository.
+
+## Error 57 — `StaleProposal`
+
+**Variant**: `ContractError::StaleProposal`
+**Code**: `57`
+**Introduced**: Issue #864 — Governance proposal staleness fix.
+
+### What it means
+
+`execute_admin_proposal` detected that the contract admin has changed since the
+proposal was created. The proposal's `admin_at_creation` field no longer matches
+`DataKey::Admin`, which means executing the proposal would silently revert the
+contract to a superseded admin state.
+
+### Common causes
+
+1. **Direct admin rotation**: `update_admin` was called between proposal creation
+   and execution.
+2. **Timelocked `SetAdmin`**: A `timelock_execute` for a `SetAdmin` action
+   completed while the proposal was open.
+3. **Concurrent proposal race**: A different governance proposal executed first,
+   changing the admin, leaving this proposal stale.
+
+### Resolution
+
+The stale proposal cannot be executed. To change the admin, create a new
+proposal under the current admin. The old stale proposal may be cancelled via
+`cancel_admin_proposal` to clean up storage.

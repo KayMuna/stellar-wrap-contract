@@ -940,6 +940,8 @@ mod test;
 #[cfg(test)]
 mod governance_exec_test;
 #[cfg(test)]
+mod governance_staleness_test;
+#[cfg(test)]
 mod test_utils;
 #[cfg(test)]
 mod test_vectors;
